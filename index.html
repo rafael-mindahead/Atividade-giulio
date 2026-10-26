@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Busca de Clientes - PUCPR</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">P</span>
+        <div>
+          <p class="brand-title">PUCPR</p>
+          <p class="brand-subtitle">Escola Politécnica</p>
+        </div>
+      </div>
+      <span class="header-tag">Atividade de desenvolvimento web</span>
+    </div>
+  </header>
+
+  <main class="page">
+    <div class="intro">
+      <p class="eyebrow">Sistema de consulta</p>
+      <h1>Busca de clientes</h1>
+      <p class="intro-text">Encontre registros de maneira rápida e segura. Escolha a coluna, digite um termo e visualize os resultados sem recarregar a página.</p>
+    </div>
+
+    <section class="panel" aria-label="Consulta de clientes">
+      <div class="panel-header">
+        <div>
+          <h2 class="section-title">Filtrar clientes</h2>
+          <p class="section-caption">Preencha os campos abaixo para pesquisar no banco de dados.</p>
+        </div>
+        <span class="step-pill">01 / Busca</span>
+      </div>
+      <form id="formBusca" class="search-form">
+      <div class="controle">
+        <label for="campo">Buscar por</label>
+        <select id="campo" name="campo">
+          <option value="nome">Nome</option>
+          <option value="email">E-mail</option>
+          <option value="cidade">Cidade</option>
+          <option value="estado">Estado</option>
+          <option value="profissao">Profissão</option>
+          <option value="telefone">Telefone</option>
+        </select>
+      </div>
+      <div class="controle">
+        <label for="valor">Valor da busca</label>
+        <input id="valor" name="valor" type="text" placeholder="Ex.: Curitiba" required>
+      </div>
+      <button id="botaoBuscar" class="search-button" type="submit">
+        <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="7"></circle>
+          <path d="m20 20-4-4"></path>
+        </svg>
+        Buscar
+      </button>
+      </form>
+      <div class="results-header">
+        <div>
+          <h2 class="section-title">Resultados da pesquisa</h2>
+          <p class="result-hint">Dados retornados pelo endpoint PHP</p>
+        </div>
+        <p id="mensagem" role="status" aria-live="polite"></p>
+      </div>
+      <div id="resultados" class="tabela-scroll"></div>
+    </section>
+    <footer class="page-footer">PUCPR · Endpoint POST + Fetch API · Atividade avaliativa</footer>
+  </main>
+
+  <script>
+    const formulario = document.getElementById('formBusca');
+    const mensagem = document.getElementById('mensagem');
+    const resultados = document.getElementById('resultados');
+    const botao = document.getElementById('botaoBuscar');
+
+    const colunas = [
+      ['id', 'ID'],
+      ['nome', 'Nome'],
+      ['email', 'E-mail'],
+      ['cidade', 'Cidade'],
+      ['estado', 'Estado'],
+      ['profissao', 'Profissão'],
+      ['telefone', 'Telefone']
+    ];
+
+    function exibirMensagem(texto, erro = false) {
+      mensagem.textContent = texto;
+      mensagem.className = erro ? 'erro' : '';
+    }
+
+    function montarTabela(clientes) {
+      resultados.replaceChildren();
+      if (clientes.length === 0) {
+        exibirMensagem('Nenhum registro encontrado.');
+        return;
+      }
+
+      const tabela = document.createElement('table');
+      const cabecalho = document.createElement('thead');
+      const linhaCabecalho = document.createElement('tr');
+
+      for (const [, titulo] of colunas) {
+        const th = document.createElement('th');
+        th.textContent = titulo;
+        linhaCabecalho.appendChild(th);
+      }
+      cabecalho.appendChild(linhaCabecalho);
+      tabela.appendChild(cabecalho);
+
+      const corpo = document.createElement('tbody');
+      for (const cliente of clientes) {
+        const linha = document.createElement('tr');
+        for (const [chave] of colunas) {
+          const celula = document.createElement('td');
+          celula.textContent = String(cliente[chave] ?? '');
+          linha.appendChild(celula);
+        }
+        corpo.appendChild(linha);
+      }
+      tabela.appendChild(corpo);
+      resultados.appendChild(tabela);
+      exibirMensagem(`${clientes.length} registro(s) encontrado(s).`);
+    }
+
+    formulario.addEventListener('submit', async (evento) => {
+      evento.preventDefault(); // Não recarrega a página.
+      resultados.replaceChildren();
+      exibirMensagem('Buscando...');
+      botao.disabled = true;
+
+      const campo = document.getElementById('campo').value;
+      const valor = document.getElementById('valor').value;
+
+      try {
+        const resposta = await fetch('buscar.php', {
+          method: 'POST',
+          body: new URLSearchParams({ campo, valor })
+        });
+
+        const dados = await resposta.json();
+        if (!resposta.ok) {
+          throw new Error(dados.erro || `Erro HTTP ${resposta.status}`);
+        }
+        if (!Array.isArray(dados)) {
+          throw new Error('O servidor retornou dados inesperados.');
+        }
+
+        montarTabela(dados);
+      } catch (erro) {
+        if (erro instanceof TypeError) {
+          exibirMensagem('Falha de rede. Confira a conexão com o servidor.', true);
+        } else {
+          exibirMensagem(erro.message, true);
+        }
+      } finally {
+        botao.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
